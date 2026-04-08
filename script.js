@@ -9,6 +9,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let boardState = Array(9).fill(null);
     let currentPlayer = 'X';
     let isGameActive = true;
+    let gameMode = 'human'; // 'human' | 'computer'
+    let aiPlayer = 'O';
 
     // Score tracking
     let scores = { X: 0, O: 0, draws: 0 };
@@ -111,6 +113,40 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         switchPlayer();
+
+        // Trigger AI move after human plays in computer mode
+        if (gameMode === 'computer' && isGameActive) {
+            setTimeout(makeAIMove, 500);
+        }
+    };
+
+    const getBestMove = () => {
+        const emptyIndices = boardState
+            .map((cell, i) => cell === null ? i : null)
+            .filter(i => i !== null);
+
+        if (emptyIndices.length === 0) return -1;
+
+        return emptyIndices[Math.floor(Math.random() * emptyIndices.length)];
+    };
+
+    const makeAIMove = () => {
+        if (gameMode !== 'computer' || currentPlayer !== aiPlayer || !isGameActive) return;
+
+        const bestMove = getBestMove();
+        if (bestMove === -1) return;
+
+        boardState[bestMove] = aiPlayer;
+        updateView(bestMove, aiPlayer);
+
+        if (!checkGameEnd()) {
+            switchPlayer();
+        }
+    };
+
+    const setGameMode = (mode) => {
+        gameMode = mode;
+        resetGame();
     };
 
     const resetGame = () => {
@@ -135,6 +171,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     restartButton.addEventListener('click', resetGame);
+
+    // Mode button listeners
+    const modeButtons = document.querySelectorAll('.mode-btn');
+    modeButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            modeButtons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            setGameMode(btn.dataset.mode);
+        });
+    });
 
     resetGame();
 });
