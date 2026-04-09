@@ -88,11 +88,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const switchPlayer = () => {
         currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
-        const icon = currentPlayer === 'X' ? '🎯' : '💫';
+        const icon = currentPlayer === 'X' ? '🎮' : '🤖';
         statusDisplay.innerHTML = `
             <span class="status-icon">${icon}</span>
-            <span class="status-text">Player ${currentPlayer}'s turn</span>
+            <span class="status-text">PLAYER ${currentPlayer}'S TURN</span>
         `;
+
+        // Update turn indicator
+        updateTurnIndicator();
+    };
+
+    const updateTurnIndicator = () => {
+        const xScoreEl = document.querySelector('.player-x-score');
+        const oScoreEl = document.querySelector('.player-o-score');
+
+        if (currentPlayer === 'X') {
+            xScoreEl.classList.add('active-glow');
+            oScoreEl.classList.remove('active-glow');
+        } else {
+            xScoreEl.classList.remove('active-glow');
+            oScoreEl.classList.add('active-glow');
+        }
     };
 
     const handleCellClick = (event) => {
@@ -161,9 +177,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         statusDisplay.innerHTML = `
             <span class="status-icon">🎮</span>
-            <span class="status-text">Player X's turn</span>
+            <span class="status-text">PLAYER X'S TURN</span>
         `;
         statusDisplay.classList.remove('winner', 'draw');
+
+        // Reset turn indicator
+        updateTurnIndicator();
     };
 
     cells.forEach(cell => {
@@ -172,13 +191,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     restartButton.addEventListener('click', resetGame);
 
-    // Mode button listeners
-    const modeButtons = document.querySelectorAll('.mode-btn');
-    modeButtons.forEach(btn => {
-        btn.addEventListener('click', () => {
-            modeButtons.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            setGameMode(btn.dataset.mode);
+    // Mode toggle listeners
+    const modeToggles = document.querySelectorAll('input[name="game-mode"]');
+    const toggleTrack = document.querySelector('.toggle-track');
+
+    modeToggles.forEach(toggle => {
+        toggle.addEventListener('change', () => {
+            if (toggle.value === 'computer') {
+                toggleTrack.classList.add('computer-mode');
+            } else {
+                toggleTrack.classList.remove('computer-mode');
+            }
+            setGameMode(toggle.value);
         });
     });
 

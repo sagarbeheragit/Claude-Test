@@ -3,7 +3,12 @@
     "allow": [
       "WebSearch",
       "mcp__ide__executeCode",
-      "mcp__github__create_repository"
+      "mcp__github__create_repository",
+      "Bash(git add:*)",
+      "Bash(open:*)"
     ]
+  },
+  "enabledPlugins": {
+    "superpowers@claude-plugins-official": true
   }
 }
