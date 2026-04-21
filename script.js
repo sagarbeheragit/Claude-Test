@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let isGameActive = true;
     let gameMode = 'human'; // 'human' | 'computer'
     let aiPlayer = 'O';
+    let difficulty = 'medium'; // 'easy' | 'medium' | 'difficult' | 'impossible'
 
     // Score tracking
     let scores = { X: 0, O: 0, draws: 0 };
@@ -137,12 +138,58 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const getBestMove = () => {
+        switch (difficulty) {
+            case 'easy':
+                return getRandomMove();
+            case 'medium':
+                return getOpportunisticMove();
+            case 'difficult':
+                return getSmartMove();
+            case 'impossible':
+                return getMinimaxMove();
+            default:
+                return getRandomMove();
+        }
+    };
+
+    const getRandomMove = () => {
+        const emptyIndices = boardState
+            .map((cell, i) => cell === null ? i : null)
+            .filter(i => i !== null);
+
+        if (emptyIndices.length === 0) return -1;
+        return emptyIndices[Math.floor(Math.random() * emptyIndices.length)];
+    };
+
+    const getOpportunisticMove = () => {
         const emptyIndices = boardState
             .map((cell, i) => cell === null ? i : null)
             .filter(i => i !== null);
 
         if (emptyIndices.length === 0) return -1;
 
+        // Check if AI can win immediately
+        for (const index of emptyIndices) {
+            boardState[index] = aiPlayer;
+            const result = checkWinner();
+            boardState[index] = null;
+            if (result && result.winner === aiPlayer) {
+                return index;
+            }
+        }
+
+        // Check if player can win next turn and block
+        const humanPlayer = aiPlayer === 'O' ? 'X' : 'O';
+        for (const index of emptyIndices) {
+            boardState[index] = humanPlayer;
+            const result = checkWinner();
+            boardState[index] = null;
+            if (result && result.winner === humanPlayer) {
+                return index;
+            }
+        }
+
+        // Otherwise random
         return emptyIndices[Math.floor(Math.random() * emptyIndices.length)];
     };
 
@@ -157,6 +204,138 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!checkGameEnd()) {
             switchPlayer();
+        }
+    };
+
+    const getSmartMove = () => {
+        const emptyIndices = boardState
+            .map((cell, i) => cell === null ? i : null)
+            .filter(i => i !== null);
+
+        if (emptyIndices.length === 0) return -1;
+
+        // 15% chance of random move (mistake)
+        if (Math.random() < 0.15) {
+            return emptyIndices[Math.floor(Math.random() * emptyIndices.length)];
+        }
+
+        // Rate each available move
+        let bestMove = -1;
+        let bestScore = -Infinity;
+
+        for (const index of emptyIndices) {
+            let score = 0;
+
+            // Check if this move wins
+            boardState[index] = aiPlayer;
+            const winResult = checkWinner();
+            boardState[index] = null;
+            if (winResult && winResult.winner === aiPlayer) {
+                return index; // Always take winning move
+            }
+
+            // Check if need to block player win
+            const humanPlayer = aiPlayer === 'O' ? 'X' : 'O';
+            boardState[index] = humanPlayer;
+            const blockResult = checkWinner();
+            boardState[index] = null;
+            if (blockResult && blockResult.winner === humanPlayer) {
+                score += 50; // High priority to block
+            }
+
+            // Score for creating 2-in-a-row setups
+            boardState[index] = aiPlayer;
+            if (checkTwoInARow(aiPlayer)) {
+                score += 25;
+            }
+            boardState[index] = null;
+
+            // Prefer center
+            if (index === 4) score += 10;
+
+            // Prefer corners
+            if ([0, 2, 6, 8].includes(index)) score += 5;
+
+            if (score > bestScore) {
+                bestScore = score;
+                bestMove = index;
+            }
+        }
+
+        return bestMove !== -1 ? bestMove : emptyIndices[Math.floor(Math.random() * emptyIndices.length)];
+    };
+
+    const checkTwoInARow = (player) => {
+        for (const combo of WINNING_COMBINATIONS) {
+            const [a, b, c] = combo;
+            const values = [boardState[a], boardState[b], boardState[c]];
+            const playerCount = values.filter(v => v === player).length;
+            const emptyCount = values.filter(v => v === null).length;
+            if (playerCount === 2 && emptyCount === 1) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    const getMinimaxMove = () => {
+        const emptyIndices = boardState
+            .map((cell, i) => cell === null ? i : null)
+            .filter(i => i !== null);
+
+        if (emptyIndices.length === 0) return -1;
+
+        let bestScore = -Infinity;
+        let bestMove = -1;
+
+        for (const index of emptyIndices) {
+            boardState[index] = aiPlayer;
+            const score = minimax(0, false);
+            boardState[index] = null;
+
+            if (score > bestScore) {
+                bestScore = score;
+                bestMove = index;
+            }
+        }
+
+        return bestMove;
+    };
+
+    const minimax = (depth, isMaximizing) => {
+        // Check terminal states
+        const result = checkWinner();
+        if (result) {
+            return result.winner === aiPlayer ? 10 - depth : depth - 10;
+        }
+
+        if (!boardState.includes(null)) {
+            return 0; // Draw
+        }
+
+        if (isMaximizing) {
+            let bestScore = -Infinity;
+            for (let i = 0; i < boardState.length; i++) {
+                if (boardState[i] === null) {
+                    boardState[i] = aiPlayer;
+                    const score = minimax(depth + 1, false);
+                    boardState[i] = null;
+                    bestScore = Math.max(score, bestScore);
+                }
+            }
+            return bestScore;
+        } else {
+            let bestScore = Infinity;
+            const humanPlayer = aiPlayer === 'O' ? 'X' : 'O';
+            for (let i = 0; i < boardState.length; i++) {
+                if (boardState[i] === null) {
+                    boardState[i] = humanPlayer;
+                    const score = minimax(depth + 1, true);
+                    boardState[i] = null;
+                    bestScore = Math.min(score, bestScore);
+                }
+            }
+            return bestScore;
         }
     };
 
@@ -194,15 +373,38 @@ document.addEventListener('DOMContentLoaded', () => {
     // Mode toggle listeners
     const modeToggles = document.querySelectorAll('input[name="game-mode"]');
     const toggleTrack = document.querySelector('.toggle-track');
+    const difficultySelector = document.getElementById('difficulty-selector');
+    const difficultyButtons = document.querySelectorAll('.difficulty-btn');
 
     modeToggles.forEach(toggle => {
         toggle.addEventListener('change', () => {
             if (toggle.value === 'computer') {
                 toggleTrack.classList.add('computer-mode');
+                difficultySelector.style.display = 'flex';
+                // Reset to medium difficulty
+                difficulty = 'medium';
+                difficultyButtons.forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.level === 'medium');
+                });
             } else {
                 toggleTrack.classList.remove('computer-mode');
+                difficultySelector.style.display = 'none';
             }
             setGameMode(toggle.value);
+        });
+    });
+
+    // Difficulty selector listeners
+    difficultyButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            // Remove active class from all buttons
+            difficultyButtons.forEach(b => b.classList.remove('active'));
+            // Add active class to clicked button
+            btn.classList.add('active');
+            // Update difficulty state
+            difficulty = btn.dataset.level;
+            // Reset game when difficulty changes
+            resetGame();
         });
     });
 
